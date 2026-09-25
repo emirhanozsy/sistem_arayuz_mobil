@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/((?!data\\.json|assets/).*)", "destination": "/index.html" }
+  ]
+}

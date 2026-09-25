@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import MemberCard from './MemberCard.jsx'
+import { loadData, searchMembers, updateMember, getStats } from '../data-service.js'
 import './Dashboard.css'
 
 export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
@@ -15,26 +16,25 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
   const [filterDurum, setFilterDurum] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [stats, setStats] = useState({ total: 0, visited: 0, document_received: 0, opposite_party: 0 })
+  const [dataLoaded, setDataLoaded] = useState(false)
 
   const searchTimeoutRef = useRef(null)
-  const abortRef = useRef(null)
 
-  const fetchStats = async () => {
-    try {
-      const res = await fetch('/api/stats')
-      const data = await res.json()
-      setStats(data)
-    } catch {
-      // stats error ignored
-    }
-  }
-
+  // Load data on mount
   useEffect(() => {
-    fetchStats()
+    loadData().then(() => {
+      setDataLoaded(true)
+      setStats(getStats())
+    }).catch(() => {
+      showToast('Veri yüklenirken hata oluştu', 'error')
+    })
   }, [])
 
-  const performSearch = useCallback(async (searchQuery, searchPage = 1, ilce = filterIlce, durum = filterDurum, append = false) => {
-    // If both query and durum are empty, don't show all 23k rows at once unless explicitly asked
+  const refreshStats = () => {
+    setStats(getStats())
+  }
+
+  const performSearch = useCallback((searchQuery, searchPage = 1, ilce = filterIlce, durum = filterDurum, append = false) => {
     if (!searchQuery.trim() && !durum && !ilce) {
       setResults([])
       setHasSearched(false)
@@ -42,31 +42,21 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
       return
     }
 
-    if (abortRef.current) {
-      abortRef.current.abort()
-    }
-    const controller = new AbortController()
-    abortRef.current = controller
-
     if (append) {
       setIsLoadingMore(true)
     } else {
       setIsSearching(true)
     }
 
-    try {
-      const params = new URLSearchParams({
+    // Use requestAnimationFrame to keep UI responsive
+    requestAnimationFrame(() => {
+      const data = searchMembers({
         q: searchQuery.trim(),
-        page: searchPage.toString(),
-        limit: '20',
+        page: searchPage,
+        limit: 20,
+        ilce,
+        durum,
       })
-      if (ilce) params.set('ilce', ilce)
-      if (durum) params.set('durum', durum)
-
-      const response = await fetch(`/api/search?${params}`, {
-        signal: controller.signal,
-      })
-      const data = await response.json()
 
       if (append) {
         setResults(prev => [...prev, ...data.results])
@@ -77,15 +67,10 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
       setHasMore(data.hasMore)
       setPage(searchPage)
       setHasSearched(true)
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        showToast('Arama sırasında hata oluştu', 'error')
-      }
-    } finally {
       setIsSearching(false)
       setIsLoadingMore(false)
-    }
-  }, [filterIlce, filterDurum, showToast])
+    })
+  }, [filterIlce, filterDurum])
 
   const handleSearchInput = (e) => {
     const value = e.target.value
@@ -126,13 +111,9 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
 
   const handleUpdateMember = async ({ rowIndex, durum, belgeyiAlan, referans, notlar }) => {
     try {
-      const response = await fetch('/api/update-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rowIndex, durum, value: durum, belgeyiAlan, referans, notlar }),
-      })
-      const data = await response.json()
-      if (data.success) {
+      const result = updateMember({ rowIndex, durum, belgeyiAlan, referans, notlar })
+      
+      if (result.success) {
         setResults(prev => prev.map(item => {
           if (item.__originalRowIndex === rowIndex) {
             return {
@@ -161,12 +142,12 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
         } else {
           showToast('Değişiklik kaydedildi', 'success')
         }
-        fetchStats()
+        refreshStats()
       } else {
         showToast('Kayıt başarısız oldu', 'error')
       }
     } catch {
-      showToast('Sunucu bağlantı hatası', 'error')
+      showToast('Bir hata oluştu', 'error')
     }
   }
 
@@ -284,9 +265,10 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
               type="text"
               value={query}
               onChange={handleSearchInput}
-              placeholder="Unvan, sicil no, yetkili veya kelime ara..."
+              placeholder={dataLoaded ? "Unvan, sicil no, yetkili veya kelime ara..." : "Veri yükleniyor..."}
               className="search-input"
               autoComplete="off"
+              disabled={!dataLoaded}
             />
             {query && (
               <button
@@ -373,14 +355,21 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
 
       {/* Main Content */}
       <main className="dashboard-content">
-        {isSearching && (
+        {!dataLoaded && (
           <div className="search-loading">
             <span className="spinner" />
-            <span>Excel listesinde aranıyor...</span>
+            <span>Veri yükleniyor...</span>
           </div>
         )}
 
-        {!isSearching && !hasSearched && (
+        {isSearching && (
+          <div className="search-loading">
+            <span className="spinner" />
+            <span>Aranıyor...</span>
+          </div>
+        )}
+
+        {dataLoaded && !isSearching && !hasSearched && (
           <div className="empty-state">
             <div className="empty-icon">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -390,7 +379,7 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
             </div>
             <p className="empty-title">Üye Arama</p>
             <p className="empty-description">
-              Excel dosyasındaki 23.000+ üye arasında unvan, sicil no, yetkili veya adres aramak için yukarıdaki kutuyu kullanın.
+              Excel dosyasındaki {stats.total > 0 ? stats.total.toLocaleString('tr-TR') + '+' : ''} üye arasında unvan, sicil no, yetkili veya adres aramak için yukarıdaki kutuyu kullanın.
             </p>
             <div className="quick-search-tags">
               <button onClick={() => { setQuery('Gıda'); performSearch('Gıda', 1); }} className="tag-btn">Gıda</button>

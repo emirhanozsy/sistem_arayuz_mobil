@@ -3,6 +3,9 @@ node_modules/
 .pnp
 .pnp.js
 
+# Generated data
+public/data.json
+
 # Build output
 dist/
 
