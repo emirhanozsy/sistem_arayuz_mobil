@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "prebuild": "node scripts/convert-excel.js",
-    "build": "node scripts/convert-excel.js && vite build",
+    "build": "node scripts/convert-excel.js && npx vite build",
     "preview": "vite preview"
   },
   "dependencies": {
