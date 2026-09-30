@@ -14,6 +14,10 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [filterIlce, setFilterIlce] = useState('')
   const [filterDurum, setFilterDurum] = useState('')
+  const [filterKomite, setFilterKomite] = useState('')
+  const [filterKayitDurumu, setFilterKayitDurumu] = useState('')
+  const [sortIlce, setSortIlce] = useState('')
+  const [sortAdres, setSortAdres] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [stats, setStats] = useState({ total: 0, visited: 0, document_received: 0, opposite_party: 0 })
   const [dataLoaded, setDataLoaded] = useState(false)
@@ -34,8 +38,14 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
     setStats(getStats())
   }
 
-  const performSearch = useCallback((searchQuery, searchPage = 1, ilce = filterIlce, durum = filterDurum, append = false) => {
-    if (!searchQuery.trim() && !durum && !ilce) {
+  const performSearch = useCallback((
+    searchQuery, searchPage = 1,
+    ilce = filterIlce, durum = filterDurum,
+    komite = filterKomite, kayitDurumu = filterKayitDurumu,
+    sIlce = sortIlce, sAdres = sortAdres,
+    append = false
+  ) => {
+    if (!searchQuery.trim() && !durum && !ilce && !komite && !kayitDurumu && !sIlce && !sAdres) {
       setResults([])
       setHasSearched(false)
       setTotalResults(0)
@@ -56,6 +66,10 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
         limit: 20,
         ilce,
         durum,
+        komite,
+        kayitDurumu,
+        sortIlce: sIlce,
+        sortAdres: sAdres
       })
 
       if (append) {
@@ -70,7 +84,7 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
       setIsSearching(false)
       setIsLoadingMore(false)
     })
-  }, [filterIlce, filterDurum])
+  }, [filterIlce, filterDurum, filterKomite, filterKayitDurumu, sortIlce, sortAdres])
 
   const handleSearchInput = (e) => {
     const value = e.target.value
@@ -81,7 +95,7 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
     }
 
     searchTimeoutRef.current = setTimeout(() => {
-      performSearch(value, 1, filterIlce, filterDurum)
+      performSearch(value, 1, filterIlce, filterDurum, filterKomite, filterKayitDurumu, sortIlce, sortAdres)
     }, 350)
   }
 
@@ -90,23 +104,47 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
     }
-    performSearch(query, 1, filterIlce, filterDurum)
+    performSearch(query, 1, filterIlce, filterDurum, filterKomite, filterKayitDurumu, sortIlce, sortAdres)
   }
 
   const handleLoadMore = () => {
-    performSearch(query, page + 1, filterIlce, filterDurum, true)
+    performSearch(query, page + 1, filterIlce, filterDurum, filterKomite, filterKayitDurumu, sortIlce, sortAdres, true)
   }
 
   const handleFilterDistrictChange = (ilce) => {
     const newIlce = filterIlce === ilce ? '' : ilce
     setFilterIlce(newIlce)
-    performSearch(query, 1, newIlce, filterDurum)
+    performSearch(query, 1, newIlce, filterDurum, filterKomite, filterKayitDurumu, sortIlce, sortAdres)
   }
 
   const handleFilterDurumChange = (durum) => {
     const newDurum = filterDurum === durum ? '' : durum
     setFilterDurum(newDurum)
-    performSearch(query, 1, filterIlce, newDurum)
+    performSearch(query, 1, filterIlce, newDurum, filterKomite, filterKayitDurumu, sortIlce, sortAdres)
+  }
+
+  const handleFilterKomiteChange = (e) => {
+    const newKomite = e.target.value
+    setFilterKomite(newKomite)
+    performSearch(query, 1, filterIlce, filterDurum, newKomite, filterKayitDurumu, sortIlce, sortAdres)
+  }
+
+  const handleFilterKayitDurumuChange = (durum) => {
+    const newDurum = filterKayitDurumu === durum ? '' : durum
+    setFilterKayitDurumu(newDurum)
+    performSearch(query, 1, filterIlce, filterDurum, filterKomite, newDurum, sortIlce, sortAdres)
+  }
+
+  const handleSortIlceChange = (sort) => {
+    const newSort = sortIlce === sort ? '' : sort
+    setSortIlce(newSort)
+    performSearch(query, 1, filterIlce, filterDurum, filterKomite, filterKayitDurumu, newSort, sortAdres)
+  }
+
+  const handleSortAdresChange = (sort) => {
+    const newSort = sortAdres === sort ? '' : sort
+    setSortAdres(newSort)
+    performSearch(query, 1, filterIlce, filterDurum, filterKomite, filterKayitDurumu, sortIlce, newSort)
   }
 
   const handleUpdateMember = async ({ rowIndex, durum, belgeyiAlan, referans, notlar }) => {
@@ -157,12 +195,12 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
 
   const clearSearch = () => {
     setQuery('')
-    if (!filterDurum && !filterIlce) {
+    if (!filterDurum && !filterIlce && !filterKomite && !filterKayitDurumu && !sortIlce && !sortAdres) {
       setResults([])
       setHasSearched(false)
       setTotalResults(0)
     } else {
-      performSearch('', 1, filterIlce, filterDurum)
+      performSearch('', 1, filterIlce, filterDurum, filterKomite, filterKayitDurumu, sortIlce, sortAdres)
     }
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
   }
@@ -286,7 +324,7 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
           </div>
           <button
             type="button"
-            className={`filter-toggle ${(showFilters || filterIlce || filterDurum) ? 'active' : ''}`}
+            className={`filter-toggle ${(showFilters || filterIlce || filterDurum || filterKomite || filterKayitDurumu || sortIlce || sortAdres) ? 'active' : ''}`}
             onClick={() => setShowFilters(!showFilters)}
             aria-label="Filtreler"
             title="Filtreler"
@@ -329,8 +367,8 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
               </div>
             </div>
 
-            <div className="filter-group" style={{ marginTop: '8px' }}>
-              <span className="filter-group-title">Durum:</span>
+            <div className="filter-group" style={{ marginTop: '12px' }}>
+              <span className="filter-group-title">Süreç Durumu:</span>
               <div className="filter-chips">
                 <button
                   className={`filter-chip ${!filterDurum ? 'active' : ''}`}
@@ -347,6 +385,63 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
                     {d}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="filter-group" style={{ marginTop: '12px' }}>
+              <span className="filter-group-title">Kayıt Durumu:</span>
+              <div className="filter-chips">
+                <button
+                  className={`filter-chip ${!filterKayitDurumu ? 'active' : ''}`}
+                  onClick={() => handleFilterKayitDurumuChange('')}
+                >
+                  Tümü
+                </button>
+                {['Aktif', 'Askı'].map(d => (
+                  <button
+                    key={d}
+                    className={`filter-chip ${filterKayitDurumu === d ? 'active' : ''}`}
+                    onClick={() => handleFilterKayitDurumuChange(d)}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-group" style={{ marginTop: '12px' }}>
+              <span className="filter-group-title">Komite:</span>
+              <select 
+                className="filter-select" 
+                value={filterKomite} 
+                onChange={handleFilterKomiteChange}
+              >
+                <option value="">Tümü</option>
+                {Array.from({length: 43}, (_, i) => i + 1).map(k => (
+                  <option key={k} value={k}>{k}. Komite</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group" style={{ marginTop: '12px' }}>
+              <span className="filter-group-title">Sıralama:</span>
+              <div className="filter-sort-controls">
+                <div className="sort-box">
+                  <span className="sort-label">İlçe:</span>
+                  <div className="filter-chips">
+                    <button className={`filter-chip ${!sortIlce ? 'active' : ''}`} onClick={() => handleSortIlceChange('')}>Varsayılan</button>
+                    <button className={`filter-chip ${sortIlce === 'asc' ? 'active' : ''}`} onClick={() => handleSortIlceChange('asc')}>A-Z</button>
+                    <button className={`filter-chip ${sortIlce === 'desc' ? 'active' : ''}`} onClick={() => handleSortIlceChange('desc')}>Z-A</button>
+                  </div>
+                </div>
+                <div className="sort-box" style={{ marginTop: '8px' }}>
+                  <span className="sort-label">Adres:</span>
+                  <div className="filter-chips">
+                    <button className={`filter-chip ${!sortAdres ? 'active' : ''}`} onClick={() => handleSortAdresChange('')}>Varsayılan</button>
+                    <button className={`filter-chip ${sortAdres === 'asc' ? 'active' : ''}`} onClick={() => handleSortAdresChange('asc')}>A-Z</button>
+                    <button className={`filter-chip ${sortAdres === 'desc' ? 'active' : ''}`} onClick={() => handleSortAdresChange('desc')}>Z-A</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -410,9 +505,16 @@ export default function Dashboard({ onLogout, showToast, theme, toggleTheme }) {
           <>
             <div className="results-info">
               <span><strong>{totalResults.toLocaleString('tr-TR')}</strong> kayıt bulundu</span>
-              {(filterIlce || filterDurum) && (
+              {(filterIlce || filterDurum || filterKomite || filterKayitDurumu || sortIlce || sortAdres) && (
                 <span className="active-filter-label">
-                  Filtre: {[filterIlce, filterDurum].filter(Boolean).join(', ')}
+                  Filtre: {[
+                    filterIlce, 
+                    filterDurum, 
+                    filterKomite ? `${filterKomite}. Komite` : '', 
+                    filterKayitDurumu,
+                    sortIlce ? `İlçe(${sortIlce === 'asc' ? 'A-Z' : 'Z-A'})` : '',
+                    sortAdres ? `Adres(${sortAdres === 'asc' ? 'A-Z' : 'Z-A'})` : ''
+                  ].filter(Boolean).join(', ')}
                 </span>
               )}
             </div>

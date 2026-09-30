@@ -97,7 +97,7 @@ export async function loadData() {
 }
 
 // --- Search ---
-export function searchMembers({ q = '', page = 1, limit = 20, ilce = '', durum = '' }) {
+export function searchMembers({ q = '', page = 1, limit = 20, ilce = '', durum = '', komite = '', kayitDurumu = '', sortIlce = '', sortAdres = '' }) {
   if (!allMembers) return { results: [], total: 0, page: 1, limit: 20, hasMore: false };
 
   const tokens = normalizeTr(q).split(/\s+/).filter(Boolean);
@@ -123,6 +123,26 @@ export function searchMembers({ q = '', page = 1, limit = 20, ilce = '', durum =
     });
   }
 
+  // Apply komite filter
+  if (komite) {
+    filtered = filtered.filter(m => {
+      if (!m.m) return false;
+      const match = m.m.match(/(\d+)$/);
+      const mKomite = match ? Number(match[1]) : (Number(m.m) || null);
+      return mKomite === Number(komite);
+    });
+  }
+
+  // Apply kayitDurumu filter (Aktif/Askı)
+  if (kayitDurumu) {
+    filtered = filtered.filter(m => {
+      const isAski = m.m && m.m.includes('Askı');
+      if (kayitDurumu === 'Askı') return isAski;
+      if (kayitDurumu === 'Aktif') return !isAski;
+      return true;
+    });
+  }
+
   // Apply status filter (check saved updates too)
   if (durum) {
     filtered = filtered.filter(m => {
@@ -133,8 +153,27 @@ export function searchMembers({ q = '', page = 1, limit = 20, ilce = '', durum =
   }
 
   // If no filters at all, return empty (don't show all 23k)
-  if (tokens.length === 0 && !normalizedIlce && !durum) {
+  if (tokens.length === 0 && !normalizedIlce && !durum && !komite && !kayitDurumu && !sortIlce && !sortAdres) {
     return { results: [], total: 0, page: 1, limit, hasMore: false };
+  }
+
+  // Apply sorting
+  if (sortIlce || sortAdres) {
+    filtered = [...filtered].sort((a, b) => {
+      if (sortIlce) {
+        const valA = (a.cl || a.l || '').toUpperCase();
+        const valB = (b.cl || b.l || '').toUpperCase();
+        if (valA < valB) return sortIlce === 'asc' ? -1 : 1;
+        if (valA > valB) return sortIlce === 'asc' ? 1 : -1;
+      }
+      if (sortAdres) {
+        const valA = (a.a || '').toUpperCase();
+        const valB = (b.a || '').toUpperCase();
+        if (valA < valB) return sortAdres === 'asc' ? -1 : 1;
+        if (valA > valB) return sortAdres === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
   }
 
   const total = filtered.length;

@@ -286,6 +286,41 @@
   border-color: var(--color-accent);
 }
 
+.filter-select {
+  flex: 1;
+  max-width: 200px;
+  height: 32px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  padding: 0 8px;
+  outline: none;
+}
+
+.filter-select:focus {
+  border-color: var(--color-accent);
+}
+
+.filter-sort-controls {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.sort-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  min-width: 44px;
+}
+
 /* Content */
 .dashboard-content {
   flex: 1;
